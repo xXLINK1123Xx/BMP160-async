@@ -1,0 +1,12 @@
+[package]
+name = "bpm180-async"
+version = "0.1.0"
+edition = "2021"
+authors = ["yarosheptaO <sasha.yaroshepta@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal-async = "1.0.0"
+defmt = "0.3"
+libm = "0.2"
