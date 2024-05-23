@@ -62,6 +62,7 @@ pub struct CalibrationCoefficients {
 pub enum BMP180Error<E> {
     CalibrationError,
     RawReadingError,
+    GroundLevelNotSet,
     I2cError(I2cBusError<E>),
 }
 
@@ -70,6 +71,7 @@ pub struct BMP180<I, D> {
     delay: D,
     coeff: CalibrationCoefficients,
     pressure_precision: PressureMode,
+    ground_level_pressure: Option<f32>,
 }
 
 impl<I, D, E> BMP180<I, D>
@@ -86,12 +88,40 @@ where
             delay,
             coeff: Default::default(),
             pressure_precision,
+            ground_level_pressure: None,
         })
     }
 
     pub async fn init(&mut self) -> Result<(), BMP180Error<E>> {
         self.coeff = self.get_calibration().await?;
         Ok(())
+    }
+
+    pub async fn calculate_ground_level(&mut self) -> Result<(), BMP180Error<E>> {
+        let mut p = 0f32;
+
+        for _ in [0..10] {
+            p += self.pressure_pa().await?;
+        }
+
+        p /= 10.0;
+
+        self.ground_level_pressure = Some(p);
+
+        Ok(())
+    }
+
+    pub async fn calculate_altitude(&mut self) -> Result<f32, BMP180Error<E>> {
+        if self.ground_level_pressure.is_none() {
+            return Err(BMP180Error::GroundLevelNotSet);
+        }
+
+        let g_pressure = self.ground_level_pressure.unwrap();
+        let current_pressure = self.pressure_pa().await?;
+
+        let altitude = 44330.0 * (1.0 - powf(current_pressure / g_pressure, 1.0 / 5.255));
+
+        Ok(altitude)
     }
 
     pub async fn pressure_pa(&mut self) -> Result<f32, BMP180Error<E>> {
